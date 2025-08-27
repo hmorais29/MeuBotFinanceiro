@@ -1,0 +1,9 @@
+# Ignore environment folder
+env/
+# Ignore cache folder
+__pycache__/
+# Ignore all log and text files in the root directory (adjust as needed)
+*.txt
+*.json
+# Ignore image files
+*.png
