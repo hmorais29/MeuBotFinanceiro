@@ -1,1 +1,588 @@
-<!-- Gráficos -->
+{% extends "base.html" %}
+
+{% block title %}Gráficos - Trading Bot{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-candlestick me-2"></i>Seleção de Instrumentos
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Instrumento 1</label>
+                        <select class="form-select" id="symbol1">
+                            <option value="">Selecionar...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Instrumento 2 (Opcional)</label>
+                        <select class="form-select" id="symbol2">
+                            <option value="">Selecionar...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Intervalo</label>
+                        <select class="form-select" id="interval">
+                            <option value="1D">1 Dia</option>
+                            <option value="30m">30 Minutos</option>
+                            <option value="1m">1 Minuto</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button class="btn btn-primary" onclick="updateCharts()">
+                            <i class="fas fa-sync me-1"></i>Atualizar Gráficos
+                        </button>
+                        <button class="btn btn-success ms-2" onclick="startAutoRefresh()">
+                            <i class="fas fa-play me-1"></i>Auto Refresh
+                        </button>
+                        <button class="btn btn-warning ms-2" onclick="stopAutoRefresh()">
+                            <i class="fas fa-pause me-1"></i>Parar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preços Atuais -->
+<div class="row mb-4" id="price-cards">
+    <!-- Cards de preços serão inseridos aqui dinamicamente -->
+</div>
+
+<!-- Gráfico 1 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chart-line me-2"></i>Gráfico 1: <span id="chart1-title">---</span></span>
+                <div>
+                    <span id="chart1-price" class="fs-5 fw-bold">---</span>
+                    <span id="chart1-change" class="ms-2">---</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="chart1"></canvas>
+                </div>
+                <div id="chart1-loading" class="loading">Seleciona um instrumento para ver o gráfico</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico 2 -->
+<div class="row mb-4" id="chart2-container" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chart-line me-2"></i>Gráfico 2: <span id="chart2-title">---</span></span>
+                <div>
+                    <span id="chart2-price" class="fs-5 fw-bold">---</span>
+                    <span id="chart2-change" class="ms-2">---</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="chart2"></canvas>
+                </div>
+                <div id="chart2-loading" class="loading">Seleciona um segundo instrumento</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Informações Técnicas -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calculator me-2"></i>Indicadores Técnicos
+            </div>
+            <div class="card-body">
+                <div id="technical-indicators">
+                    <p class="text-muted text-center">Seleciona um instrumento para ver indicadores</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle me-2"></i>Informações do Mercado
+            </div>
+            <div class="card-body">
+                <div id="market-info">
+                    <p class="text-muted text-center">Seleciona um instrumento para ver informações</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let chart1 = null;
+let chart2 = null;
+let autoRefreshInterval = null;
+
+// Carrega instrumentos disponíveis
+function loadInstruments() {
+    fetch('/api/assets')
+        .then(response => response.json())
+        .then(data => {
+            const symbol1 = document.getElementById('symbol1');
+            const symbol2 = document.getElementById('symbol2');
+            
+            // Limpa selects
+            symbol1.innerHTML = '<option value="">Selecionar...</option>';
+            symbol2.innerHTML = '<option value="">Selecionar...</option>';
+            
+            for (const [category, instruments] of Object.entries(data)) {
+                const optgroup1 = document.createElement('optgroup');
+                const optgroup2 = document.createElement('optgroup');
+                optgroup1.label = category.charAt(0).toUpperCase() + category.slice(1);
+                optgroup2.label = category.charAt(0).toUpperCase() + category.slice(1);
+                
+                instruments.forEach(instrument => {
+                    const option1 = document.createElement('option');
+                    const option2 = document.createElement('option');
+                    option1.value = instrument.symbol;
+                    option2.value = instrument.symbol;
+                    option1.textContent = `${instrument.symbol} - ${instrument.name}`;
+                    option2.textContent = `${instrument.symbol} - ${instrument.name}`;
+                    optgroup1.appendChild(option1);
+                    optgroup2.appendChild(option2);
+                });
+                
+                symbol1.appendChild(optgroup1);
+                symbol2.appendChild(optgroup2);
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar instrumentos:', error);
+        });
+}
+
+// Atualiza gráficos
+function updateCharts() {
+    const symbol1 = document.getElementById('symbol1').value;
+    const symbol2 = document.getElementById('symbol2').value;
+    const interval = document.getElementById('interval').value;
+    
+    if (symbol1) {
+        updateChart(1, symbol1, interval);
+    }
+    
+    if (symbol2) {
+        updateChart(2, symbol2, interval);
+        document.getElementById('chart2-container').style.display = 'block';
+    } else {
+        document.getElementById('chart2-container').style.display = 'none';
+    }
+    
+    updatePriceCards();
+}
+
+// Atualiza gráfico específico
+function updateChart(chartNum, symbol, interval) {
+    const loadingElement = document.getElementById(`chart${chartNum}-loading`);
+    const titleElement = document.getElementById(`chart${chartNum}-title`);
+    const priceElement = document.getElementById(`chart${chartNum}-price`);
+    const changeElement = document.getElementById(`chart${chartNum}-change`);
+    
+    loadingElement.style.display = 'block';
+    titleElement.textContent = symbol;
+    
+    fetch(`/api/market/${symbol}?interval=${interval}`)
+        .then(response => response.json())
+        .then(data => {
+            loadingElement.style.display = 'none';
+            
+            if (data.error) {
+                console.error('Erro:', data.error);
+                return;
+            }
+            
+            // Atualiza informações do cabeçalho
+            if (data.current_price) {
+                priceElement.textContent = `€${data.current_price.toFixed(4)}`;
+                
+                if (data.change_percent !== undefined) {
+                    const changeClass = data.change_percent >= 0 ? 'positive' : 'negative';
+                    const changeIcon = data.change_percent >= 0 ? '▲' : '▼';
+                    changeElement.innerHTML = `<span class="${changeClass}">${changeIcon} ${data.change_percent.toFixed(2)}%</span>`;
+                }
+            }
+            
+            // Cria gráfico de velas
+            createCandlestickChart(chartNum, symbol, data);
+            
+            // Atualiza indicadores técnicos (apenas para o primeiro gráfico)
+            if (chartNum === 1) {
+                updateTechnicalIndicators(data);
+                updateMarketInfo(symbol, data);
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar dados:', error);
+            loadingElement.innerHTML = '<div class="error">Erro ao carregar dados</div>';
+        });
+}
+
+// Cria gráfico de velas usando Chart.js
+function createCandlestickChart(chartNum, symbol, marketData) {
+    const ctx = document.getElementById(`chart${chartNum}`).getContext('2d');
+    
+    // Destrói gráfico anterior se existir
+    if (chartNum === 1 && chart1) {
+        chart1.destroy();
+    } else if (chartNum === 2 && chart2) {
+        chart2.destroy();
+    }
+    
+    if (!marketData.data || marketData.data.length === 0) {
+        return;
+    }
+    
+    // Prepara dados para Chart.js (como linha já que Chart.js básico não suporta candlestick)
+    const labels = marketData.data.map(candle => {
+        const date = new Date(candle.timestamp * 1000);
+        return date.toLocaleString('pt-PT', {
+            month: 'short',
+            day: '2-digit',
+            hour: marketData.interval !== '1D' ? '2-digit' : undefined,
+            minute: marketData.interval === '1m' ? '2-digit' : undefined
+        });
+    });
+    
+    const prices = marketData.data.map(candle => candle.close);
+    const highs = marketData.data.map(candle => candle.high);
+    const lows = marketData.data.map(candle => candle.low);
+    
+    const chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: `${symbol} - Preço de Fecho`,
+                    data: prices,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                },
+                {
+                    label: `${symbol} - Máximo`,
+                    data: highs,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.1
+                },
+                {
+                    label: `${symbol} - Mínimo`,
+                    data: lows,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const candle = marketData.data[context.dataIndex];
+                            return [
+                                `Abertura: €${candle.open.toFixed(4)}`,
+                                `Máximo: €${candle.high.toFixed(4)}`,
+                                `Mínimo: €${candle.low.toFixed(4)}`,
+                                `Volume: ${candle.volume.toLocaleString()}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Tempo'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Preço (€)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '€' + value.toFixed(4);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+    
+    // Guarda referência do gráfico
+    if (chartNum === 1) {
+        chart1 = chartInstance;
+    } else {
+        chart2 = chartInstance;
+    }
+}
+
+// Atualiza cards de preços
+function updatePriceCards() {
+    const symbol1 = document.getElementById('symbol1').value;
+    const symbol2 = document.getElementById('symbol2').value;
+    const container = document.getElementById('price-cards');
+    
+    container.innerHTML = '';
+    
+    if (symbol1) {
+        createPriceCard(symbol1, container);
+    }
+    
+    if (symbol2) {
+        createPriceCard(symbol2, container);
+    }
+}
+
+// Cria card de preço
+function createPriceCard(symbol, container) {
+    fetch(`/api/market/${symbol}/price`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) return;
+            
+            const col = document.createElement('div');
+            col.className = 'col-md-6';
+            
+            col.innerHTML = `
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">${symbol}</h5>
+                        <h3 class="text-primary mb-0">€${data.price.toFixed(4)}</h3>
+                        <small class="text-muted">Preço atual</small>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-success me-1" onclick="quickTrade('${symbol}', 'BUY')">
+                                Comprar
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="quickTrade('${symbol}', 'SELL')">
+                                Vender
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(col);
+        })
+        .catch(error => console.error('Erro ao carregar preço:', error));
+}
+
+// Atualiza indicadores técnicos
+function updateTechnicalIndicators(data) {
+    const container = document.getElementById('technical-indicators');
+    
+    if (!data.data || data.data.length < 2) {
+        container.innerHTML = '<p class="text-muted">Dados insuficientes para indicadores</p>';
+        return;
+    }
+    
+    // Cálculos simples
+    const prices = data.data.map(candle => candle.close);
+    const lastPrice = prices[prices.length - 1];
+    const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+    const maxPrice = Math.max(...prices);
+    const minPrice = Math.min(...prices);
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-6">
+                <strong>Preço Atual:</strong><br>
+                <span class="fs-5">€${lastPrice.toFixed(4)}</span>
+            </div>
+            <div class="col-6">
+                <strong>Média:</strong><br>
+                <span class="fs-5">€${avgPrice.toFixed(4)}</span>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-6">
+                <strong>Máximo:</strong><br>
+                <span class="positive">€${maxPrice.toFixed(4)}</span>
+            </div>
+            <div class="col-6">
+                <strong>Mínimo:</strong><br>
+                <span class="negative">€${minPrice.toFixed(4)}</span>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <strong>Sinal Simples:</strong><br>
+                <span class="badge ${lastPrice > avgPrice ? 'bg-success' : 'bg-danger'}">
+                    ${lastPrice > avgPrice ? 'Acima da Média (ALTA)' : 'Abaixo da Média (BAIXA)'}
+                </span>
+            </div>
+        </div>
+    `;
+}
+
+// Atualiza informações do mercado
+function updateMarketInfo(symbol, data) {
+    const container = document.getElementById('market-info');
+    
+    if (!data.data || data.data.length === 0) {
+        container.innerHTML = '<p class="text-muted">Sem informações disponíveis</p>';
+        return;
+    }
+    
+    const latestCandle = data.data[data.data.length - 1];
+    const volume = latestCandle.volume || 0;
+    const spread = ((latestCandle.high - latestCandle.low) / latestCandle.close * 100);
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-12">
+                <strong>Símbolo:</strong> ${symbol}<br>
+                <strong>Intervalo:</strong> ${data.interval}<br>
+                <strong>Velas:</strong> ${data.data.length}
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-6">
+                <strong>Volume:</strong><br>
+                <span>${volume.toLocaleString()}</span>
+            </div>
+            <div class="col-6">
+                <strong>Spread:</strong><br>
+                <span>${spread.toFixed(2)}%</span>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <small class="text-muted">
+                    Última atualização: ${new Date().toLocaleTimeString('pt-PT')}
+                </small>
+            </div>
+        </div>
+    `;
+}
+
+// Trade rápido
+function quickTrade(symbol, side) {
+    const amount = prompt(`Valor a investir em ${symbol} (€):`, '1000');
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+        return;
+    }
+    
+    const tradeData = {
+        symbol: symbol,
+        side: side,
+        amount: parseFloat(amount),
+        justification: `Trade rápido ${side} via gráficos`
+    };
+    
+    fetch('/api/trade', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(tradeData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Trade ${side} de ${symbol} executado com sucesso!`);
+            updateCharts(); // Atualiza dados
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao executar trade:', error);
+        alert('Erro ao executar trade');
+    });
+}
+
+// Auto refresh
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    
+    autoRefreshInterval = setInterval(() => {
+        const symbol1 = document.getElementById('symbol1').value;
+        const symbol2 = document.getElementById('symbol2').value;
+        
+        if (symbol1 || symbol2) {
+            updateCharts();
+        }
+    }, 30000); // Atualiza a cada 30 segundos
+    
+    alert('Auto refresh ativado (30 segundos)');
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        alert('Auto refresh desativado');
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadInstruments();
+    
+    // Auto-atualiza quando muda seleção
+    document.getElementById('symbol1').addEventListener('change', updateCharts);
+    document.getElementById('symbol2').addEventListener('change', updateCharts);
+    document.getElementById('interval').addEventListener('change', updateCharts);
+});
+
+// Cleanup ao sair da página
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>

@@ -1,4 +1,25 @@
-"""
-requirements.txt - Trading Bot
-TODO: Implementar
-"""
+# Web Framework
+Flask>=2.3.0
+Flask-CORS>=4.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Data Analysis
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Financial Data
+yfinance>=0.2.18
+
+# Technical Analysis (opcional - instalar apenas se necessário)
+# TA-Lib  # Requer instalação manual no Windows
+
+# Timezone handling
+pytz>=2023.3
+
+# Date handling
+python-dateutil>=2.8.2
+
+# JSON handling (já incluído no Python, mas útil ter versão atualizada)
+# sqlite3  # Já incluído no Python standard library
