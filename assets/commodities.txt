@@ -1,0 +1,10 @@
+GC=F,Gold
+SI=F,Silver
+CL=F,Crude Oil WTI
+BZ=F,Brent Crude Oil
+NG=F,Natural Gas
+HG=F,Copper
+PL=F,Platinum
+PA=F,Palladium
+ZC=F,Corn
+ZS=F,Soybeans

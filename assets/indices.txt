@@ -1,0 +1,10 @@
+^GSPC,S&P 500
+^DJI,Dow Jones Industrial Average
+^IXIC,NASDAQ Composite
+^RUT,Russell 2000
+^FTSE,FTSE 100
+^GDAXI,DAX
+^FCHI,CAC 40
+^N225,Nikkei 225
+^HSI,Hang Seng Index
+^AXJO,ASX 200

@@ -1,0 +1,10 @@
+BTC-USD,Bitcoin
+ETH-USD,Ethereum
+BNB-USD,Binance Coin
+XRP-USD,XRP
+ADA-USD,Cardano
+SOL-USD,Solana
+DOGE-USD,Dogecoin
+DOT-USD,Polkadot
+AVAX-USD,Avalanche
+MATIC-USD,Polygon

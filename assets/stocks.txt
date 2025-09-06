@@ -1,0 +1,10 @@
+AAPL,Apple Inc.
+MSFT,Microsoft Corporation
+GOOGL,Alphabet Inc.
+AMZN,Amazon.com Inc.
+TSLA,Tesla Inc.
+META,Meta Platforms Inc.
+NVDA,NVIDIA Corporation
+BRK-B,Berkshire Hathaway
+JNJ,Johnson & Johnson
+V,Visa Inc.
