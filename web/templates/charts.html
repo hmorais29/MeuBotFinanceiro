@@ -474,6 +474,7 @@ function updateMarketInfo(symbol, data) {
     }
     
     const latestCandle = data.data[data.data.length - 1];
+    const latestCandle = data.data[data.data.length - 1];
     const volume = latestCandle.volume || 0;
     const spread = ((latestCandle.high - latestCandle.low) / latestCandle.close * 100);
     
@@ -586,3 +587,4 @@ window.addEventListener('beforeunload', function() {
     }
 });
 </script>
+{% endblock %}

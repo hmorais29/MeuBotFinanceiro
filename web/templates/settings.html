@@ -1,1 +1,606 @@
-<!-- Configurações -->
+{% extends "base.html" %}
+
+{% block title %}Configurações - Trading Bot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- API Keys -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-key me-2"></i>API Keys
+            </div>
+            <div class="card-body">
+                <form id="api-keys-form">
+                    <div class="mb-3">
+                        <label class="form-label">Finnhub API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="finnhub-key" 
+                                   placeholder="Finnhub API Key">
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('finnhub-key')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-circle api-status" id="finnhub-status"></i>
+                            Status: <span id="finnhub-status-text">Verificando...</span>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Twelve Data API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="twelve_data-key" 
+                                   placeholder="Twelve Data API Key">
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('twelve_data-key')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-circle api-status" id="twelve_data-status"></i>
+                            Status: <span id="twelve_data-status-text">Verificando...</span>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Alpha Vantage API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="alpha_vantage-key" 
+                                   placeholder="Alpha Vantage API Key">
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('alpha_vantage-key')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-circle api-status" id="alpha_vantage-status"></i>
+                            Status: <span id="alpha_vantage-status-text">Verificando...</span>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">News API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="newsapi-key" 
+                                   placeholder="News API Key">
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('newsapi-key')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-circle api-status" id="newsapi-status"></i>
+                            Status: <span id="newsapi-status-text">Verificando...</span>
+                        </small>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" onclick="saveApiKeys()">
+                            <i class="fas fa-save me-1"></i>Guardar API Keys
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Configurações da Carteira -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-wallet me-2"></i>Configurações da Carteira
+            </div>
+            <div class="card-body">
+                <form id="portfolio-settings-form">
+                    <div class="mb-3">
+                        <label class="form-label">Máximo de Trades por Dia</label>
+                        <select class="form-select" id="max-trades-per-day">
+                            <option value="1">1 Trade</option>
+                            <option value="3">3 Trades</option>
+                            <option value="5" selected>5 Trades</option>
+                            <option value="10">10 Trades</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Máximo de Posições Abertas</label>
+                        <select class="form-select" id="max-open-trades">
+                            <option value="1" selected>1 Posição</option>
+                            <option value="2">2 Posições</option>
+                            <option value="3">3 Posições</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Meta de Lucro Diário (%)</label>
+                        <input type="number" class="form-control" id="daily-profit-target" 
+                               min="1" max="20" step="0.5" value="5">
+                        <small class="text-muted">Parar trading quando atingir esta meta</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Stop Loss Padrão (%)</label>
+                        <input type="number" class="form-control" id="stop-loss" 
+                               min="0.5" max="10" step="0.1" value="2">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Take Profit Padrão (%)</label>
+                        <input type="number" class="form-control" id="take-profit" 
+                               min="1" max="20" step="0.1" value="5">
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-success" onclick="savePortfolioSettings()">
+                            <i class="fas fa-save me-1"></i>Guardar Configurações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gestão de Instrumentos -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-list me-2"></i>Gestão de Instrumentos
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Categoria</label>
+                        <select class="form-select" id="asset-category">
+                            <option value="indices">Índices</option>
+                            <option value="stocks">Ações</option>
+                            <option value="commodities">Commodities</option>
+                            <option value="crypto">Criptomoedas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary d-block" onclick="loadAssetCategory()">
+                            <i class="fas fa-sync me-1"></i>Carregar Categoria
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="assets-table">
+                        <thead>
+                            <tr>
+                                <th>Símbolo</th>
+                                <th>Nome</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Seleciona uma categoria para ver os instrumentos
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3">
+                    <button class="btn btn-success me-2" onclick="addNewAsset()">
+                        <i class="fas fa-plus me-1"></i>Adicionar Instrumento
+                    </button>
+                    <button class="btn btn-outline-info" onclick="testAllAssets()">
+                        <i class="fas fa-vial me-1"></i>Testar Todos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sistema e Logs -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-cogs me-2"></i>Sistema
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6>Estado do Sistema</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Trading Bot:</span>
+                        <span class="badge bg-success">Ativo</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Base de Dados:</span>
+                        <span class="badge bg-success">Conectado</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>APIs:</span>
+                        <span class="badge bg-success" id="apis-status">Online</span>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3">
+                    <h6>Estatísticas</h6>
+                    <small class="text-muted d-block">Uptime: <span id="uptime">---</span></small>
+                    <small class="text-muted d-block">Requests hoje: <span id="api-requests">---</span></small>
+                    <small class="text-muted d-block">Última atualização: <span id="last-update">---</span></small>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning" onclick="resetPortfolio()">
+                        <i class="fas fa-undo me-1"></i>Reset Carteira
+                    </button>
+                    <button class="btn btn-outline-info" onclick="exportData()">
+                        <i class="fas fa-download me-1"></i>Exportar Dados
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="clearLogs()">
+                        <i class="fas fa-trash me-1"></i>Limpar Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Adicionar Instrumento -->
+<div class="modal fade" id="addAssetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Adicionar Instrumento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-asset-form">
+                    <div class="mb-3">
+                        <label class="form-label">Categoria</label>
+                        <select class="form-select" id="new-asset-category" required>
+                            <option value="indices">Índices</option>
+                            <option value="stocks">Ações</option>
+                            <option value="commodities">Commodities</option>
+                            <option value="crypto">Criptomoedas</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Símbolo</label>
+                        <input type="text" class="form-control" id="new-asset-symbol" 
+                               placeholder="Ex: AAPL, BTC-USD, ^GSPC" required>
+                        <small class="text-muted">Usar formato correto para cada API</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="new-asset-name" 
+                               placeholder="Ex: Apple Inc., Bitcoin, S&P 500" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveNewAsset()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let addAssetModal;
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+    addAssetModal = new bootstrap.Modal(document.getElementById('addAssetModal'));
+    loadApiKeys();
+    loadPortfolioSettings();
+    checkApiStatus();
+    updateSystemStats();
+});
+
+// Carrega API keys (sem mostrar valores)
+function loadApiKeys() {
+    fetch('/api/settings/api-keys')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Erro ao carregar API keys:', data.error);
+                return;
+            }
+            
+            updateApiStatus(data);
+        })
+        .catch(error => console.error('Erro:', error));
+}
+
+// Atualiza status das APIs
+function updateApiStatus(data) {
+    const apis = ['finnhub', 'twelve_data', 'alpha_vantage', 'newsapi'];
+    
+    apis.forEach(api => {
+        const statusIcon = document.getElementById(`${api}-status`);
+        const statusText = document.getElementById(`${api}-status-text`);
+        
+        if (data[api] && data[api].status === 'active') {
+            statusIcon.className = 'fas fa-circle api-status text-success';
+            statusText.textContent = 'Online';
+        } else {
+            statusIcon.className = 'fas fa-circle api-status text-danger';
+            statusText.textContent = 'Offline';
+        }
+    });
+}
+
+// Verifica status das APIs
+function checkApiStatus() {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.apis) {
+                updateApiStatus(data.apis);
+            }
+        })
+        .catch(error => console.error('Erro ao verificar status:', error));
+}
+
+// Carrega configurações da carteira
+function loadPortfolioSettings() {
+    fetch('/api/settings/portfolio')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Erro:', data.error);
+                return;
+            }
+            
+            document.getElementById('max-trades-per-day').value = data.max_trades_per_day || 5;
+            document.getElementById('max-open-trades').value = data.max_open_trades || 1;
+            document.getElementById('daily-profit-target').value = data.daily_profit_target || 5;
+            document.getElementById('stop-loss').value = data.stop_loss_percentage || 2;
+            document.getElementById('take-profit').value = data.take_profit_percentage || 5;
+        })
+        .catch(error => console.error('Erro:', error));
+}
+
+// Guarda API keys
+function saveApiKeys() {
+    const keys = {
+        finnhub: document.getElementById('finnhub-key').value,
+        twelve_data: document.getElementById('twelve_data-key').value,
+        alpha_vantage: document.getElementById('alpha_vantage-key').value,
+        newsapi: document.getElementById('newsapi-key').value
+    };
+    
+    // Remove keys vazias
+    Object.keys(keys).forEach(key => {
+        if (!keys[key]) delete keys[key];
+    });
+    
+    fetch('/api/settings/api-keys', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(keys)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('API keys guardadas com sucesso!');
+            checkApiStatus();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao guardar API keys');
+    });
+}
+
+// Guarda configurações da carteira
+function savePortfolioSettings() {
+    const settings = {
+        max_trades_per_day: parseInt(document.getElementById('max-trades-per-day').value),
+        max_open_trades: parseInt(document.getElementById('max-open-trades').value),
+        daily_profit_target: parseFloat(document.getElementById('daily-profit-target').value),
+        stop_loss_percentage: parseFloat(document.getElementById('stop-loss').value),
+        take_profit_percentage: parseFloat(document.getElementById('take-profit').value)
+    };
+    
+    fetch('/api/settings/portfolio', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Configurações da carteira guardadas com sucesso!');
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao guardar configurações');
+    });
+}
+
+// Carrega categoria de assets
+function loadAssetCategory() {
+    const category = document.getElementById('asset-category').value;
+    
+    fetch('/api/assets')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error || !data[category]) {
+                console.error('Erro ao carregar categoria:', category);
+                return;
+            }
+            
+            updateAssetsTable(data[category]);
+        })
+        .catch(error => console.error('Erro:', error));
+}
+
+// Atualiza tabela de assets
+function updateAssetsTable(assets) {
+    const tbody = document.querySelector('#assets-table tbody');
+    
+    if (!assets || assets.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Nenhum instrumento nesta categoria
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = assets.map(asset => `
+        <tr>
+            <td><strong>${asset.symbol}</strong></td>
+            <td>${asset.name}</td>
+            <td>
+                <span class="badge bg-success">Ativo</span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="testAsset('${asset.symbol}')">
+                    <i class="fas fa-vial"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeAsset('${asset.symbol}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Testa um asset específico
+function testAsset(symbol) {
+    fetch(`/api/market/${symbol}/price`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(`Erro ao testar ${symbol}: ${data.error}`);
+            } else {
+                alert(`${symbol}: €${data.price.toFixed(4)} - OK`);
+            }
+        })
+        .catch(error => {
+            alert(`Erro ao testar ${symbol}: ${error.message}`);
+        });
+}
+
+// Testa todos os assets
+function testAllAssets() {
+    alert('Funcionalidade de teste em massa em desenvolvimento');
+}
+
+// Abre modal para adicionar asset
+function addNewAsset() {
+    document.getElementById('add-asset-form').reset();
+    document.getElementById('new-asset-category').value = document.getElementById('asset-category').value;
+    addAssetModal.show();
+}
+
+// Guarda novo asset
+function saveNewAsset() {
+    const form = document.getElementById('add-asset-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    // Por agora, apenas simula
+    alert('Funcionalidade de adicionar instrumentos em desenvolvimento');
+    addAssetModal.hide();
+}
+
+// Remove asset
+function removeAsset(symbol) {
+    if (!confirm(`Tens a certeza que queres remover ${symbol}?`)) {
+        return;
+    }
+    
+    alert('Funcionalidade de remoção em desenvolvimento');
+}
+
+// Atualiza estatísticas do sistema
+function updateSystemStats() {
+    const startTime = new Date().getTime();
+    
+    document.getElementById('uptime').textContent = '< 1 min';
+    document.getElementById('api-requests').textContent = '0';
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('pt-PT');
+    
+    // Atualiza a cada minuto
+    setInterval(() => {
+        const uptime = Math.floor((new Date().getTime() - startTime) / 1000 / 60);
+        document.getElementById('uptime').textContent = uptime > 0 ? `${uptime} min` : '< 1 min';
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString('pt-PT');
+    }, 60000);
+}
+
+// Reset da carteira
+function resetPortfolio() {
+    if (!confirm('ATENÇÃO: Isto irá apagar todo o histórico de trades e repor o saldo para €100,000. Tens a certeza?')) {
+        return;
+    }
+    
+    alert('Funcionalidade de reset em desenvolvimento');
+}
+
+// Exporta dados
+function exportData() {
+    alert('Funcionalidade de exportação em desenvolvimento');
+}
+
+// Limpa logs
+function clearLogs() {
+    if (!confirm('Tens a certeza que queres limpar todos os logs?')) {
+        return;
+    }
+    
+    alert('Funcionalidade de limpeza de logs em desenvolvimento');
+}
+
+// Toggle visibilidade da password
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+// Atualiza status a cada 30 segundos
+setInterval(() => {
+    checkApiStatus();
+    updateSystemStats();
+}, 30000);
+</script>
+{% endblock %}

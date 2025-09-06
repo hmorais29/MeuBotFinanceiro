@@ -1,1 +1,445 @@
-<!-- Gestão de carteira -->
+{% extends "base.html" %}
+
+{% block title %}Carteira - Trading Bot{% endblock %}
+
+{% block content %}
+<!-- Resumo da Carteira -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-wallet me-2"></i>Resumo da Carteira
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h6 class="text-muted">Saldo Total</h6>
+                            <h3 class="text-primary" id="portfolio-balance">€100,000.00</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h6 class="text-muted">P&L Total</h6>
+                            <h3 class="text-success" id="total-pnl">€0.00</h3>
+                            <small class="text-muted">+0.00%</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h6 class="text-muted">P&L Hoje</h6>
+                            <h3 class="text-warning" id="daily-pnl">€0.00</h3>
+                            <small class="text-muted">+0.00%</small>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Total de Trades:</strong>
+                        <span class="float-end" id="total-trades">0</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Trades Hoje:</strong>
+                        <span class="float-end" id="trades-today">0/5</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Posições Abertas:</strong>
+                        <span class="float-end" id="open-positions">0/1</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Taxa de Sucesso:</strong>
+                        <span class="float-end" id="win-rate">---</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-plus me-2"></i>Ações Rápidas
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" onclick="openTradeModal('BUY')">
+                        <i class="fas fa-arrow-up me-1"></i>Comprar
+                    </button>
+                    <button class="btn btn-danger" onclick="openTradeModal('SELL')">
+                        <i class="fas fa-arrow-down me-1"></i>Vender
+                    </button>
+                    <button class="btn btn-warning" onclick="closeAllPositions()">
+                        <i class="fas fa-times-circle me-1"></i>Fechar Todas
+                    </button>
+                    <a href="/charts" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-line me-1"></i>Ver Gráficos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Posições Abertas -->
+<div class="row mb-4" id="open-positions-section" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-clock me-2"></i>Posições Abertas
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="open-positions-table">
+                        <thead>
+                            <tr>
+                                <th>Instrumento</th>
+                                <th>Lado</th>
+                                <th>Valor</th>
+                                <th>Preço Entrada</th>
+                                <th>Preço Atual</th>
+                                <th>P&L</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Histórico de Trades -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-history me-2"></i>Histórico de Trades</span>
+                <div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportHistory()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadTradeHistory()">
+                        <i class="fas fa-sync me-1"></i>Atualizar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="trades-history">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Instrumento</th>
+                                <th>Lado</th>
+                                <th>Valor</th>
+                                <th>Preço Entrada</th>
+                                <th>Preço Saída</th>
+                                <th>P&L</th>
+                                <th>Estratégia</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Nenhum trade realizado ainda
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Trade -->
+<div class="modal fade" id="tradeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    <span id="modal-action">Executar</span> Trade
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="trade-form">
+                    <div class="mb-3">
+                        <label class="form-label">Instrumento</label>
+                        <select class="form-select" id="trade-symbol" required>
+                            <option value="">Selecionar instrumento...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Lado</label>
+                        <select class="form-select" id="trade-side" required>
+                            <option value="BUY">Comprar</option>
+                            <option value="SELL">Vender</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Valor (€)</label>
+                        <input type="number" class="form-control" id="trade-amount" 
+                               min="1000" max="10000" step="100" value="1000" required>
+                        <small class="text-muted">Mín: €1,000 | Máx: €10,000</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Justificação</label>
+                        <textarea class="form-control" id="trade-justification" rows="3" 
+                                  placeholder="Descreve brevemente o motivo deste trade..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="executeTrade()">
+                    <i class="fas fa-check me-1"></i>Executar Trade
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let tradeModal;
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+    tradeModal = new bootstrap.Modal(document.getElementById('tradeModal'));
+    loadPortfolioData();
+    loadTradeHistory();
+    loadInstrumentsForModal();
+});
+
+// Carrega dados da carteira
+function loadPortfolioData() {
+    fetch('/api/portfolio')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Erro:', data.error);
+                return;
+            }
+            
+            updatePortfolioSummary(data);
+        })
+        .catch(error => console.error('Erro ao carregar portfolio:', error));
+}
+
+// Atualiza resumo da carteira
+function updatePortfolioSummary(data) {
+    document.getElementById('portfolio-balance').textContent = formatCurrency(data.balance || 100000);
+    document.getElementById('total-pnl').textContent = formatCurrency(data.total_pnl || 0);
+    document.getElementById('daily-pnl').textContent = formatCurrency(data.daily_pnl || 0);
+    document.getElementById('total-trades').textContent = data.total_trades || 0;
+    document.getElementById('trades-today').textContent = `${data.trades_today || 0}/5`;
+    document.getElementById('open-positions').textContent = `${data.open_positions || 0}/1`;
+    document.getElementById('win-rate').textContent = data.win_rate ? `${data.win_rate.toFixed(1)}%` : '---';
+}
+
+// Carrega histórico de trades
+function loadTradeHistory() {
+    fetch('/api/portfolio/history')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Erro:', data.error);
+                return;
+            }
+            
+            updateTradesTable(data.trades);
+        })
+        .catch(error => console.error('Erro ao carregar histórico:', error));
+}
+
+// Atualiza tabela de trades
+function updateTradesTable(trades) {
+    const tbody = document.querySelector('#trades-history tbody');
+    
+    if (!trades || trades.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Nenhum trade realizado ainda
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = trades.map(trade => `
+        <tr>
+            <td>${formatDateTime(trade.opened_at)}</td>
+            <td><strong>${trade.symbol}</strong></td>
+            <td>
+                <span class="badge ${trade.side === 'BUY' ? 'bg-success' : 'bg-danger'}">
+                    ${trade.side}
+                </span>
+            </td>
+            <td>${formatCurrency(trade.amount)}</td>
+            <td>${trade.entry_price ? '€' + trade.entry_price.toFixed(4) : '---'}</td>
+            <td>${trade.exit_price ? '€' + trade.exit_price.toFixed(4) : '---'}</td>
+            <td class="${trade.profit_loss >= 0 ? 'positive' : 'negative'}">
+                ${formatCurrency(trade.profit_loss)}
+                ${trade.profit_loss_percent ? `(${trade.profit_loss_percent.toFixed(2)}%)` : ''}
+            </td>
+            <td>${trade.strategy || 'Manual'}</td>
+            <td>
+                <span class="badge ${trade.status === 'OPEN' ? 'bg-warning' : 'bg-secondary'}">
+                    ${trade.status}
+                </span>
+                ${trade.status === 'OPEN' ? `
+                    <button class="btn btn-sm btn-outline-danger ms-1" onclick="closeTrade(${trade.id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                ` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Carrega instrumentos para modal
+function loadInstrumentsForModal() {
+    fetch('/api/assets')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('trade-symbol');
+            select.innerHTML = '<option value="">Selecionar instrumento...</option>';
+            
+            for (const [category, instruments] of Object.entries(data)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = category.charAt(0).toUpperCase() + category.slice(1);
+                
+                instruments.forEach(instrument => {
+                    const option = document.createElement('option');
+                    option.value = instrument.symbol;
+                    option.textContent = `${instrument.symbol} - ${instrument.name}`;
+                    optgroup.appendChild(option);
+                });
+                
+                select.appendChild(optgroup);
+            }
+        })
+        .catch(error => console.error('Erro ao carregar instrumentos:', error));
+}
+
+// Abre modal de trade
+function openTradeModal(side) {
+    document.getElementById('trade-side').value = side;
+    document.getElementById('modal-action').textContent = side === 'BUY' ? 'Comprar' : 'Vender';
+    document.getElementById('trade-form').reset();
+    document.getElementById('trade-side').value = side;
+    tradeModal.show();
+}
+
+// Executa trade
+function executeTrade() {
+    const form = document.getElementById('trade-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const tradeData = {
+        symbol: document.getElementById('trade-symbol').value,
+        side: document.getElementById('trade-side').value,
+        amount: parseFloat(document.getElementById('trade-amount').value),
+        justification: document.getElementById('trade-justification').value || 'Trade manual via carteira'
+    };
+    
+    fetch('/api/trade', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(tradeData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            tradeModal.hide();
+            alert(`Trade ${tradeData.side} de ${tradeData.symbol} executado com sucesso!`);
+            loadPortfolioData();
+            loadTradeHistory();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao executar trade:', error);
+        alert('Erro ao executar trade');
+    });
+}
+
+// Fecha trade específico
+function closeTrade(tradeId) {
+    if (!confirm('Tens a certeza que queres fechar este trade?')) {
+        return;
+    }
+    
+    fetch(`/api/trade/${tradeId}/close`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            justification: 'Fecho manual via carteira'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Trade fechado com sucesso!');
+            loadPortfolioData();
+            loadTradeHistory();
+        } else {
+            alert('Erro: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao fechar trade:', error);
+        alert('Erro ao fechar trade');
+    });
+}
+
+// Fecha todas as posições
+function closeAllPositions() {
+    if (!confirm('Tens a certeza que queres fechar todas as posições abertas?')) {
+        return;
+    }
+    
+    // Implementar quando houver endpoint para fechar todas
+    alert('Funcionalidade em desenvolvimento');
+}
+
+// Exporta histórico
+function exportHistory() {
+    alert('Funcionalidade de exportação em desenvolvimento');
+}
+
+// Formatação de data/hora
+function formatDateTime(dateString) {
+    return new Date(dateString).toLocaleString('pt-PT');
+}
+
+// Atualiza dados a cada 30 segundos
+setInterval(() => {
+    loadPortfolioData();
+    loadTradeHistory();
+}, 30000);
+</script>
+{% endblock %}
