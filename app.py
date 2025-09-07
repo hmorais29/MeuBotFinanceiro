@@ -1,39 +1,89 @@
-#!/usr/bin/env python3
 """
-Trading Bot Autónomo - Aplicação Principal
-Ponto de entrada da aplicação Flask com interface web completa
+Gestor de APIs para dados de mercado e notícias
+Suporta múltiplas fontes com fallback automático
 """
+import requests
+import time
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta
+import json
 
-import os
-import sys
+# Importação condicional do yfinance
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+    print("✅ yfinance importado com sucesso")
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    print("⚠️  yfinance não disponível - usando apenas APIs web")
 
-# Adiciona path da app web
-sys.path.append(os.path.join(os.path.dirname(__file__), 'web'))
-
-from web.app import app
 from core.database import db_manager
 
-if __name__ == '__main__':
-    # Inicializa base de dados
-    print("🔧 A inicializar base de dados...")
-    db_manager.init_database()
-    
-    # Configura API keys padrão se não existirem
-    existing_keys = db_manager.get_api_keys()
-    if not existing_keys:
-        default_keys = {
-            'finnhub': 'd2mb0n9r01qq6fopqje0d2mb0n9r01qq6fopqjeg',
-            'twelve_data': 'cd4c76b8401747faa066d1ee8a0ad97a',
-            'alpha_vantage': 'YK3EAJ4G4DT1LEQ4',
-            'newsapi': '141cfc70afd14c8ba34d71b0d85fbbdd'
+
+class APIManager:
+    def __init__(self):
+        self.rate_limits = {}
+        self.last_calls = {}
+        
+        # Carrega API keys da base de dados
+        self.api_keys = db_manager.get_api_keys()
+        
+        # Rate limits por API (calls per minute)
+        self.limits = {
+            'finnhub': 60,
+            'twelve_data': 8,
+            'alpha_vantage': 5,
+            'newsapi': 100,
+            'yfinance': 2000  # Sem limite oficial, mas vamos ser conservadores
         }
-        db_manager.save_api_keys(default_keys)
-        print("🔑 API keys padrão configuradas")
+        
+        print(f"🔑 API Manager inicializado com {len(self.api_keys)} chaves")
     
-    print("🚀 A iniciar Trading Bot...")
-    print("📊 Dashboard disponível em: http://127.0.0.1:5000")
-    print("📈 Gráficos disponíveis em: http://127.0.0.1:5000/charts")
-    print("💰 Carteira disponível em: http://127.0.0.1:5000/portfolio")
+    def _check_rate_limit(self, api_name: str) -> bool:
+        """Verifica se podemos fazer uma chamada à API"""
+        now = time.time()
+        
+        if api_name not in self.last_calls:
+            self.last_calls[api_name] = []
+        
+        # Remove chamadas antigas (mais de 1 minuto)
+        self.last_calls[api_name] = [
+            call_time for call_time in self.last_calls[api_name] 
+            if now - call_time < 60
+        ]
+        
+        # Verifica se podemos fazer mais uma chamada
+        if len(self.last_calls[api_name]) >= self.limits[api_name]:
+            return False
+        
+        return True
     
-    # Debug mode para desenvolvimento
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    def _record_api_call(self, api_name: str):
+        """Regista uma chamada à API para rate limiting"""
+        if api_name not in self.last_calls:
+            self.last_calls[api_name] = []
+        
+        self.last_calls[api_name].append(time.time())
+    
+    def get_market_data(self, symbol: str, interval: str = '1D') -> Optional[Dict]:
+        """
+        Obtém dados de mercado com fallback automático entre APIs
+        
+        Args:
+            symbol: Símbolo do instrumento (ex: AAPL, ^GSPC)
+            interval: Intervalo (1m, 30m, 1D)
+            
+        Returns:
+            Dict com dados OHLCV ou None se falhar
+        """
+        print(f"📊 Obtendo dados para {symbol} ({interval})")
+        
+        # Ordem de preferência das APIs
+        apis_to_try = []
+        if YFINANCE_AVAILABLE:
+            apis_to_try.append('yfinance')
+        
+        # Adicionar outras APIs se tiverem keys
+        if 'finnhub' in self.api_keys:
+            apis_to_try.append('finnhub')
+        if 'twelve

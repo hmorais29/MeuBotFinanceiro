@@ -65,27 +65,43 @@ class APIManager:
         Returns:
             Dict com dados OHLCV ou None se falhar
         """
-        # Ordem de preferência das APIs
-        apis_to_try = ['yfinance', 'finnhub', 'twelve_data', 'alpha_vantage']
+        # Ordem de preferência das APIs - Finnhub primeiro devido aos problemas do yfinance
+        apis_to_try = ['finnhub', 'twelve_data', 'alpha_vantage', 'yfinance']
         
         for api_name in apis_to_try:
+            # Pula APIs sem chave (exceto yfinance que é gratuito)
+            if api_name != 'yfinance' and api_name not in self.api_keys:
+                db_manager.add_log('DEBUG', f"API {api_name} não tem chave configurada, a pular", 'api_manager')
+                continue
+                
             if not self._check_rate_limit(api_name):
+                db_manager.add_log('DEBUG', f"API {api_name} atingiu rate limit, a pular", 'api_manager')
                 continue
                 
             try:
+                db_manager.add_log('DEBUG', f"Tentando obter dados via {api_name} para {symbol}", 'api_manager')
+                
                 if api_name == 'yfinance':
-                    return self._get_yfinance_data(symbol, interval)
+                    data = self._get_yfinance_data(symbol, interval)
                 elif api_name == 'finnhub':
-                    return self._get_finnhub_data(symbol, interval)
+                    data = self._get_finnhub_data(symbol, interval)
                 elif api_name == 'twelve_data':
-                    return self._get_twelve_data(symbol, interval)
+                    data = self._get_twelve_data(symbol, interval)
                 elif api_name == 'alpha_vantage':
-                    return self._get_alpha_vantage_data(symbol, interval)
+                    data = self._get_alpha_vantage_data(symbol, interval)
+                
+                if data and data.get('data') and len(data['data']) > 0:
+                    db_manager.add_log('INFO', f"Dados obtidos com sucesso via {api_name} para {symbol} ({len(data['data'])} velas)", 'api_manager')
+                    return data
+                else:
+                    db_manager.add_log('WARNING', f"API {api_name} retornou dados vazios para {symbol}", 'api_manager')
+                    continue
                     
             except Exception as e:
-                print(f"Erro na API {api_name}: {e}")
+                db_manager.add_log('ERROR', f"Erro na API {api_name} para {symbol}: {e}", 'api_manager')
                 continue
         
+        db_manager.add_log('ERROR', f"Todas as APIs falharam para {symbol}", 'api_manager')
         return None
     
     def _get_yfinance_data(self, symbol: str, interval: str) -> Optional[Dict]:
@@ -215,26 +231,147 @@ class APIManager:
         if 'twelve_data' not in self.api_keys:
             return None
             
-        # Implementação similar às outras APIs
-        # Por agora, retorna None para focar nas principais
-        return None
+        try:
+            # Mapeia intervalos
+            td_intervals = {
+                '1m': '1min',
+                '30m': '30min',
+                '1D': '1day'
+            }
+            
+            if interval not in td_intervals:
+                return None
+            
+            url = "https://api.twelvedata.com/time_series"
+            params = {
+                'symbol': symbol,
+                'interval': td_intervals[interval],
+                'outputsize': '100',
+                'apikey': self.api_keys['twelve_data']
+            }
+            
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            json_data = response.json()
+            
+            if 'values' not in json_data:
+                return None
+            
+            # Converte para formato padrão
+            data = {
+                'symbol': symbol,
+                'interval': interval,
+                'data': []
+            }
+            
+            # Os dados vêm em ordem decrescente, precisamos inverter
+            for item in reversed(json_data['values']):
+                try:
+                    timestamp = int(datetime.fromisoformat(item['datetime']).timestamp())
+                    data['data'].append({
+                        'timestamp': timestamp,
+                        'open': float(item['open']),
+                        'high': float(item['high']),
+                        'low': float(item['low']),
+                        'close': float(item['close']),
+                        'volume': int(item.get('volume', 0))
+                    })
+                except (ValueError, KeyError) as e:
+                    continue
+            
+            self._record_api_call('twelve_data')
+            return data if data['data'] else None
+            
+        except Exception as e:
+            raise Exception(f"Erro Twelve Data: {e}")
     
     def _get_alpha_vantage_data(self, symbol: str, interval: str) -> Optional[Dict]:
         """Obtém dados via Alpha Vantage"""
         if 'alpha_vantage' not in self.api_keys:
             return None
             
-        # Implementação similar às outras APIs
-        # Por agora, retorna None para focar nas principais
-        return None
+        try:
+            # Mapeia intervalos e funções
+            if interval == '1D':
+                function = 'TIME_SERIES_DAILY'
+                interval_param = None
+            else:
+                function = 'TIME_SERIES_INTRADAY'
+                av_intervals = {
+                    '1m': '1min',
+                    '30m': '30min'
+                }
+                interval_param = av_intervals.get(interval)
+                if not interval_param:
+                    return None
+            
+            params = {
+                'function': function,
+                'symbol': symbol,
+                'apikey': self.api_keys['alpha_vantage']
+            }
+            
+            if interval_param:
+                params['interval'] = interval_param
+            
+            url = "https://www.alphavantage.co/query"
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            json_data = response.json()
+            
+            # Encontra a chave dos dados temporais
+            time_series_key = None
+            for key in json_data.keys():
+                if 'Time Series' in key:
+                    time_series_key = key
+                    break
+            
+            if not time_series_key or time_series_key not in json_data:
+                return None
+            
+            time_series = json_data[time_series_key]
+            
+            # Converte para formato padrão
+            data = {
+                'symbol': symbol,
+                'interval': interval,
+                'data': []
+            }
+            
+            # Ordena as datas e pega as últimas 100
+            sorted_dates = sorted(time_series.keys())[-100:]
+            
+            for date_str in sorted_dates:
+                item = time_series[date_str]
+                try:
+                    timestamp = int(datetime.fromisoformat(date_str).timestamp())
+                    data['data'].append({
+                        'timestamp': timestamp,
+                        'open': float(item['1. open']),
+                        'high': float(item['2. high']),
+                        'low': float(item['3. low']),
+                        'close': float(item['4. close']),
+                        'volume': int(item.get('5. volume', 0))
+                    })
+                except (ValueError, KeyError) as e:
+                    continue
+            
+            self._record_api_call('alpha_vantage')
+            return data if data['data'] else None
+            
+        except Exception as e:
+            raise Exception(f"Erro Alpha Vantage: {e}")
     
     def get_current_price(self, symbol: str) -> Optional[float]:
         """Obtém preço atual de um instrumento"""
+        # Tenta yfinance primeiro (mais rápido e confiável)
         try:
             import yfinance as yf
             ticker = yf.Ticker(symbol)
             
-            # Tenta obter preço actual
+            # Tenta obter preço atual
             info = ticker.info
             current_price = info.get('currentPrice')
             
@@ -242,28 +379,111 @@ class APIManager:
                 return float(current_price)
             
             # Fallback: último preço de fecho
-            hist = ticker.history(period='1d')
+            hist = ticker.history(period='1d', interval='1m')
             if not hist.empty:
                 return float(hist['Close'].iloc[-1])
                 
-            return None
-            
         except Exception as e:
-            print(f"Erro ao obter preço atual de {symbol}: {e}")
-            return None
+            db_manager.add_log('WARNING', f"Erro ao obter preço via yfinance para {symbol}: {e}", 'api_manager')
+        
+        # Fallback para Finnhub
+        if 'finnhub' in self.api_keys and self._check_rate_limit('finnhub'):
+            try:
+                url = "https://finnhub.io/api/v1/quote"
+                params = {
+                    'symbol': symbol,
+                    'token': self.api_keys['finnhub']
+                }
+                
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                
+                data = response.json()
+                current_price = data.get('c')  # Current price
+                
+                if current_price:
+                    self._record_api_call('finnhub')
+                    return float(current_price)
+                    
+            except Exception as e:
+                db_manager.add_log('WARNING', f"Erro ao obter preço via Finnhub para {symbol}: {e}", 'api_manager')
+        
+        # Fallback para Twelve Data
+        if 'twelve_data' in self.api_keys and self._check_rate_limit('twelve_data'):
+            try:
+                url = "https://api.twelvedata.com/price"
+                params = {
+                    'symbol': symbol,
+                    'apikey': self.api_keys['twelve_data']
+                }
+                
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                
+                data = response.json()
+                price = data.get('price')
+                
+                if price:
+                    self._record_api_call('twelve_data')
+                    return float(price)
+                    
+            except Exception as e:
+                db_manager.add_log('WARNING', f"Erro ao obter preço via Twelve Data para {symbol}: {e}", 'api_manager')
+        
+        return None
     
     def get_news(self, symbol: str, limit: int = 10) -> List[Dict]:
         """Obtém notícias relacionadas com um instrumento"""
-        if 'newsapi' not in self.api_keys:
-            return []
+        all_news = []
         
+        # NewsAPI
+        if 'newsapi' in self.api_keys and self._check_rate_limit('newsapi'):
+            news = self._get_newsapi_news(symbol, limit // 2)
+            all_news.extend(news)
+        
+        # Finnhub News
+        if 'finnhub' in self.api_keys and self._check_rate_limit('finnhub'):
+            news = self._get_finnhub_news(symbol, limit // 2)
+            all_news.extend(news)
+        
+        # Remove duplicados e ordena por data
+        seen_urls = set()
+        unique_news = []
+        
+        for article in all_news:
+            if article['url'] not in seen_urls:
+                seen_urls.add(article['url'])
+                unique_news.append(article)
+        
+        # Ordena por data (mais recente primeiro)
+        unique_news.sort(key=lambda x: x.get('published_at', ''), reverse=True)
+        
+        return unique_news[:limit]
+    
+    def _get_newsapi_news(self, symbol: str, limit: int) -> List[Dict]:
+        """Obtém notícias via NewsAPI"""
         try:
-            # Implementação básica - pode ser expandida
+            # Mapeia símbolos para nomes de empresas conhecidas
+            company_names = {
+                'AAPL': 'Apple',
+                'MSFT': 'Microsoft',
+                'GOOGL': 'Google',
+                'AMZN': 'Amazon',
+                'TSLA': 'Tesla',
+                'META': 'Meta Facebook',
+                'NVDA': 'NVIDIA',
+                'BTC-USD': 'Bitcoin',
+                'ETH-USD': 'Ethereum'
+            }
+            
+            query = company_names.get(symbol, symbol)
+            
             url = "https://newsapi.org/v2/everything"
             params = {
-                'q': symbol,
+                'q': query,
                 'sortBy': 'publishedAt',
                 'pageSize': limit,
+                'language': 'en',
                 'apiKey': self.api_keys['newsapi']
             }
             
@@ -279,14 +499,56 @@ class APIManager:
                     'description': article.get('description', ''),
                     'url': article.get('url', ''),
                     'published_at': article.get('publishedAt', ''),
-                    'source': article.get('source', {}).get('name', '')
+                    'source': article.get('source', {}).get('name', 'NewsAPI'),
+                    'sentiment': 'neutral'  # Pode ser melhorado com análise de sentimento
                 })
             
             self._record_api_call('newsapi')
             return articles
             
         except Exception as e:
-            print(f"Erro ao obter notícias: {e}")
+            db_manager.add_log('ERROR', f"Erro ao obter notícias via NewsAPI: {e}", 'api_manager')
+            return []
+    
+    def _get_finnhub_news(self, symbol: str, limit: int) -> List[Dict]:
+        """Obtém notícias via Finnhub"""
+        try:
+            # Data de há 7 dias
+            from_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            to_date = datetime.now().strftime('%Y-%m-%d')
+            
+            url = "https://finnhub.io/api/v1/company-news"
+            params = {
+                'symbol': symbol,
+                'from': from_date,
+                'to': to_date,
+                'token': self.api_keys['finnhub']
+            }
+            
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            articles = []
+            
+            for article in data[:limit]:
+                # Converte timestamp para ISO format
+                published_at = datetime.fromtimestamp(article.get('datetime', 0)).isoformat()
+                
+                articles.append({
+                    'title': article.get('headline', ''),
+                    'description': article.get('summary', ''),
+                    'url': article.get('url', ''),
+                    'published_at': published_at,
+                    'source': 'Finnhub',
+                    'sentiment': article.get('sentiment', 'neutral')
+                })
+            
+            self._record_api_call('finnhub')
+            return articles
+            
+        except Exception as e:
+            db_manager.add_log('ERROR', f"Erro ao obter notícias via Finnhub: {e}", 'api_manager')
             return []
     
     def get_api_status(self) -> Dict[str, Any]:
@@ -306,15 +568,108 @@ class APIManager:
             status[api_name] = {
                 'has_key': api_name in self.api_keys,
                 'remaining_calls': remaining_calls,
-                'limit': self.limits[api_name]
+                'limit': self.limits[api_name],
+                'status': 'active' if api_name in self.api_keys and remaining_calls > 0 else 'inactive'
             }
         
         return status
     
     def update_api_keys(self, keys: Dict[str, str]):
-        """Actualiza as API keys"""
-        self.api_keys.update(keys)
-        db_manager.save_api_keys(keys)
+        """Atualiza as API keys"""
+        # Remove chaves vazias
+        clean_keys = {k: v for k, v in keys.items() if v and v.strip()}
+        
+        self.api_keys.update(clean_keys)
+        db_manager.save_api_keys(clean_keys)
+        
+        # Log da atualização
+        db_manager.add_log(
+            'INFO', 
+            f'API keys atualizadas: {list(clean_keys.keys())}', 
+            'api_manager'
+        )
+    
+    def test_api_connection(self, provider: str) -> Dict[str, Any]:
+        """Testa a conexão com uma API específica"""
+        if provider not in self.api_keys:
+            return {
+                'success': False,
+                'error': 'API key não configurada'
+            }
+        
+        try:
+            if provider == 'finnhub':
+                # Testa com símbolo simples
+                url = "https://finnhub.io/api/v1/quote"
+                params = {
+                    'symbol': 'AAPL',
+                    'token': self.api_keys[provider]
+                }
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'c' in data:  # Current price exists
+                    return {'success': True, 'message': 'Conexão bem-sucedida'}
+                else:
+                    return {'success': False, 'error': 'Resposta inválida da API'}
+            
+            elif provider == 'twelve_data':
+                url = "https://api.twelvedata.com/price"
+                params = {
+                    'symbol': 'AAPL',
+                    'apikey': self.api_keys[provider]
+                }
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'price' in data:
+                    return {'success': True, 'message': 'Conexão bem-sucedida'}
+                else:
+                    return {'success': False, 'error': 'Resposta inválida da API'}
+            
+            elif provider == 'alpha_vantage':
+                url = "https://www.alphavantage.co/query"
+                params = {
+                    'function': 'GLOBAL_QUOTE',
+                    'symbol': 'AAPL',
+                    'apikey': self.api_keys[provider]
+                }
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'Global Quote' in data:
+                    return {'success': True, 'message': 'Conexão bem-sucedida'}
+                else:
+                    return {'success': False, 'error': 'Resposta inválida da API'}
+            
+            elif provider == 'newsapi':
+                url = "https://newsapi.org/v2/top-headlines"
+                params = {
+                    'country': 'us',
+                    'pageSize': 1,
+                    'apiKey': self.api_keys[provider]
+                }
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                if data.get('status') == 'ok':
+                    return {'success': True, 'message': 'Conexão bem-sucedida'}
+                else:
+                    return {'success': False, 'error': 'Resposta inválida da API'}
+            
+            else:
+                return {'success': False, 'error': 'Provider não suportado'}
+        
+        except requests.exceptions.Timeout:
+            return {'success': False, 'error': 'Timeout na conexão'}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': f'Erro de rede: {str(e)}'}
+        except Exception as e:
+            return {'success': False, 'error': f'Erro inesperado: {str(e)}'}
 
 
 # Instância global

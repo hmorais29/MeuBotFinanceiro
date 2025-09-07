@@ -1,247 +1,689 @@
-{% extends "base.html" %}
-
-{% block title %}Dashboard - Trading Bot{% endblock %}
-
-{% block content %}
-<!-- Resumo da Carteira -->
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-wallet fa-2x text-primary mb-2"></i>
-                <h5 class="card-title">Saldo Total</h5>
-                <h3 class="text-primary" id="total-balance">€100,000.00</h3>
-                <small class="text-muted">Carteira Virtual</small>
-            </div>
-        </div>
-    </div>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Autónomo</title>
     
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
-                <h5 class="card-title">P&L Hoje</h5>
-                <h3 class="text-success" id="daily-pnl">€0.00</h3>
-                <small class="text-muted">+0.00%</small>
-            </div>
-        </div>
-    </div>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-exchange-alt fa-2x text-warning mb-2"></i>
-                <h5 class="card-title">Trades Hoje</h5>
-                <h3 class="text-warning" id="trades-today">0</h3>
-                <small class="text-muted">máx. 5/dia</small>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-clock fa-2x text-info mb-2"></i>
-                <h5 class="card-title">Posições Abertas</h5>
-                <h3 class="text-info" id="open-positions">0</h3>
-                <small class="text-muted">máx. 1 ativa</small>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Status do Sistema -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-cogs me-2"></i>Estado do Sistema
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>APIs de Mercado:</h6>
-                        <div id="api-status">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Finnhub:</span>
-                                <span class="badge bg-success">Online</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Twelve Data:</span>
-                                <span class="badge bg-success">Online</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Alpha Vantage:</span>
-                                <span class="badge bg-success">Online</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Sistema de Trading:</h6>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Bot Status:</span>
-                            <span class="badge bg-success">Ativo</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Pode Operar:</span>
-                            <span class="badge bg-success">Sim</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Última Atualização:</span>
-                            <span class="text-muted" id="last-update">---</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Instrumentos Ativos -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-star me-2"></i>Instrumentos Monitorizados</span>
-                <a href="/charts" class="btn btn-primary btn-sm">
-                    <i class="fas fa-chart-line me-1"></i>Ver Gráficos
-                </a>
-            </div>
-            <div class="card-body">
-                <div id="active-instruments">
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-info-circle fa-2x mb-3"></i>
-                        <p>Nenhum instrumento selecionado</p>
-                        <a href="/charts" class="btn btn-outline-primary">
-                            Adicionar Instrumentos
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --dark-color: #1a1a1a;
+            --light-color: #ecf0f1;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: var(--primary-color) !important;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: bold;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 6px;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #2ecc71);
+            border: none;
+            border-radius: 6px;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #c0392b);
+            border: none;
+            border-radius: 6px;
+        }
+        
+        .positive {
+            color: var(--success-color);
+        }
+        
+        .negative {
+            color: var(--danger-color);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        .status-online {
+            color: var(--success-color);
+        }
+        
+        .status-offline {
+            color: var(--danger-color);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            color: var(--danger-color);
+            background-color: #fdf2f2;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid var(--danger-color);
+        }
+        
+        .instrument-item {
+            cursor: pointer;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+        
+        .instrument-item:hover {
+            background-color: #f0f0f0;
+            border-color: var(--secondary-color);
+        }
+        
+        .instrument-item.selected {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+        
+        .category-header {
+            background-color: #f8f9fa;
+            padding: 8px 12px;
+            margin: 10px 0 5px 0;
+            border-radius: 6px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                Trading Bot Autónomo
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
                         </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/portfolio">
+                            <i class="fas fa-wallet me-1"></i>Carteira
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/charts">
+                            <i class="fas fa-chart-line me-1"></i>Gráficos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/settings">
+                            <i class="fas fa-cog me-1"></i>Configurações
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <span class="navbar-text" id="portfolio-balance">
+                            <i class="fas fa-euro-sign"></i> <span id="balance-value">---</span>
+                        </span>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <span class="navbar-text" id="system-status">
+                            <i class="fas fa-circle status-indicator" id="status-icon"></i>
+                            <span id="status-text">---</span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar - Seleção de Instrumentos -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-list me-2"></i>Instrumentos
+                        <span class="badge bg-light text-dark ms-2" id="selected-count">0/2</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="search-instruments" placeholder="Pesquisar instrumentos...">
+                        </div>
+                        
+                        <div id="instruments-loading" class="loading">
+                            <i class="fas fa-spinner fa-spin"></i> A carregar instrumentos...
+                        </div>
+                        
+                        <div id="instruments-error" class="error" style="display: none;">
+                            Erro ao carregar instrumentos. Verifica a ligação à API.
+                        </div>
+                        
+                        <div id="instruments-list" style="display: none;">
+                            <!-- Instrumentos serão carregados aqui via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Carteira Resumo -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="fas fa-wallet me-2"></i>Carteira
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-12">
+                                <h4 class="mb-1" id="portfolio-balance-main">€---</h4>
+                                <small class="text-muted">Saldo Atual</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="fw-bold" id="open-trades">-</div>
+                                <small class="text-muted">Trades Abertos</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold" id="today-trades">-</div>
+                                <small class="text-muted">Trades Hoje</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content - Gráficos -->
+            <div class="col-md-9">
+                <!-- Primeiro Gráfico -->
+                <div class="card" id="chart1-card" style="display: none;">
+                    <div class="card-header">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <i class="fas fa-chart-line me-2"></i>
+                                <span id="chart1-title">Seleciona um instrumento</span>
+                                <span id="chart1-price" class="ms-3"></span>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm interval-btn" data-interval="1m" data-chart="1">1m</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm interval-btn" data-interval="30m" data-chart="1">30m</button>
+                                    <button type="button" class="btn btn-secondary btn-sm interval-btn active" data-interval="1D" data-chart="1">1D</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart1" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Segundo Gráfico -->
+                <div class="card mt-3" id="chart2-card" style="display: none;">
+                    <div class="card-header">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <i class="fas fa-chart-line me-2"></i>
+                                <span id="chart2-title">Seleciona um segundo instrumento</span>
+                                <span id="chart2-price" class="ms-3"></span>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm interval-btn" data-interval="1m" data-chart="2">1m</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm interval-btn" data-interval="30m" data-chart="2">30m</button>
+                                    <button type="button" class="btn btn-secondary btn-sm interval-btn active" data-interval="1D" data-chart="2">1D</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart2" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Mensagem inicial -->
+                <div class="card" id="no-charts-message">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Seleciona até 2 instrumentos para ver os gráficos</h5>
+                        <p class="text-muted">Clica nos instrumentos da lista à esquerda para começar.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Últimos Trades -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-history me-2"></i>Últimos Trades</span>
-                <a href="/portfolio" class="btn btn-primary btn-sm">
-                    <i class="fas fa-wallet me-1"></i>Ver Carteira
-                </a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover" id="recent-trades">
-                        <thead>
-                            <tr>
-                                <th>Data/Hora</th>
-                                <th>Instrumento</th>
-                                <th>Lado</th>
-                                <th>Valor</th>
-                                <th>P&L</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    Nenhum trade realizado ainda
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Estado da aplicação
+        const appState = {
+            selectedInstruments: [],
+            instruments: {},
+            charts: {
+                chart1: null,
+                chart2: null
+            },
+            intervals: {
+                chart1: '1D',
+                chart2: '1D'
+            }
+        };
 
-{% block scripts %}
-<script>
-// Atualiza dados do dashboard
-function updateDashboard() {
-    // Atualiza resumo da carteira
-    fetch('/api/portfolio')
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error('Erro ao carregar portfolio:', data.error);
-                return;
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInstruments();
+            updateSystemStatus();
+            setupEventListeners();
+            
+            // Atualiza status a cada 30 segundos
+            setInterval(updateSystemStatus, 30000);
+        });
+
+        function setupEventListeners() {
+            // Pesquisa de instrumentos
+            document.getElementById('search-instruments').addEventListener('input', function(e) {
+                filterInstruments(e.target.value);
+            });
+
+            // Botões de intervalo
+            document.querySelectorAll('.interval-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const interval = this.dataset.interval;
+                    const chartNum = this.dataset.chart;
+                    
+                    // Atualiza botões ativos
+                    document.querySelectorAll(`[data-chart="${chartNum}"]`).forEach(b => b.classList.remove('active', 'btn-secondary'));
+                    document.querySelectorAll(`[data-chart="${chartNum}"]`).forEach(b => b.classList.add('btn-outline-secondary'));
+                    this.classList.remove('btn-outline-secondary');
+                    this.classList.add('btn-secondary', 'active');
+                    
+                    // Atualiza intervalo e recarrega gráfico
+                    appState.intervals[`chart${chartNum}`] = interval;
+                    const symbol = appState.selectedInstruments[chartNum - 1];
+                    if (symbol) {
+                        loadChart(symbol, `chart${chartNum}`, interval);
+                    }
+                });
+            });
+        }
+
+        async function loadInstruments() {
+            try {
+                const response = await fetch('/api/assets');
+                if (!response.ok) throw new Error('Erro na API');
+                
+                const instruments = await response.json();
+                appState.instruments = instruments;
+                
+                renderInstruments(instruments);
+                
+                document.getElementById('instruments-loading').style.display = 'none';
+                document.getElementById('instruments-list').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Erro ao carregar instrumentos:', error);
+                document.getElementById('instruments-loading').style.display = 'none';
+                document.getElementById('instruments-error').style.display = 'block';
+            }
+        }
+
+        function renderInstruments(instruments) {
+            const listElement = document.getElementById('instruments-list');
+            let html = '';
+
+            const categories = {
+                'indices': { name: 'Índices', icon: 'fa-chart-line' },
+                'stocks': { name: 'Ações', icon: 'fa-building' },
+                'commodities': { name: 'Commodities', icon: 'fa-coins' },
+                'crypto': { name: 'Criptomoedas', icon: 'fa-bitcoin' }
+            };
+
+            for (const [categoryKey, categoryData] of Object.entries(categories)) {
+                if (instruments[categoryKey] && instruments[categoryKey].length > 0) {
+                    html += `
+                        <div class="category-header">
+                            <i class="fas ${categoryData.icon} me-2"></i>${categoryData.name}
+                        </div>
+                    `;
+                    
+                    instruments[categoryKey].forEach(instrument => {
+                        const isSelected = appState.selectedInstruments.includes(instrument.symbol);
+                        html += `
+                            <div class="instrument-item ${isSelected ? 'selected' : ''}" 
+                                 data-symbol="${instrument.symbol}" 
+                                 data-name="${instrument.name}"
+                                 onclick="toggleInstrument('${instrument.symbol}', '${instrument.name}')">
+                                <div class="fw-bold">${instrument.symbol}</div>
+                                <div class="text-muted small">${instrument.name}</div>
+                            </div>
+                        `;
+                    });
+                }
+            }
+
+            listElement.innerHTML = html;
+        }
+
+        function toggleInstrument(symbol, name) {
+            const index = appState.selectedInstruments.indexOf(symbol);
+            
+            if (index > -1) {
+                // Remover instrumento
+                appState.selectedInstruments.splice(index, 1);
+                
+                // Destruir gráfico correspondente
+                if (index === 0) {
+                    destroyChart('chart1');
+                    document.getElementById('chart1-card').style.display = 'none';
+                } else if (index === 1) {
+                    destroyChart('chart2');
+                    document.getElementById('chart2-card').style.display = 'none';
+                }
+                
+                // Reorganizar instrumentos
+                if (appState.selectedInstruments.length === 1 && index === 0) {
+                    // Se removeu o primeiro e ainda há um segundo, move o segundo para o primeiro lugar
+                    const remaining = appState.selectedInstruments[0];
+                    const remainingName = document.querySelector(`[data-symbol="${remaining}"]`).dataset.name;
+                    
+                    destroyChart('chart2');
+                    document.getElementById('chart2-card').style.display = 'none';
+                    
+                    loadChart(remaining, 'chart1', appState.intervals.chart1);
+                    document.getElementById('chart1-title').textContent = `${remaining} - ${remainingName}`;
+                    document.getElementById('chart1-card').style.display = 'block';
+                }
+                
+            } else {
+                // Adicionar instrumento (máximo 2)
+                if (appState.selectedInstruments.length >= 2) {
+                    alert('Máximo de 2 instrumentos. Remove um primeiro.');
+                    return;
+                }
+                
+                appState.selectedInstruments.push(symbol);
+                
+                // Carregar gráfico
+                const chartNum = appState.selectedInstruments.length;
+                const chartId = `chart${chartNum}`;
+                
+                loadChart(symbol, chartId, appState.intervals[chartId]);
+                document.getElementById(`${chartId}-title`).textContent = `${symbol} - ${name}`;
+                document.getElementById(`${chartId}-card`).style.display = 'block';
             }
             
-            document.getElementById('total-balance').textContent = formatCurrency(data.balance);
-            document.getElementById('daily-pnl').textContent = formatCurrency(data.daily_pnl || 0);
-            document.getElementById('trades-today').textContent = data.trades_today || 0;
-            document.getElementById('open-positions').textContent = data.open_positions || 0;
-        })
-        .catch(error => console.error('Erro:', error));
-    
-    // Atualiza últimos trades
-    fetch('/api/portfolio/history?limit=5')
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error('Erro ao carregar histórico:', data.error);
-                return;
+            // Atualizar UI
+            updateSelectedCount();
+            updateNoChartsMessage();
+            renderInstruments(appState.instruments); // Re-render para atualizar classes selected
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selected-count').textContent = `${appState.selectedInstruments.length}/2`;
+        }
+
+        function updateNoChartsMessage() {
+            const show = appState.selectedInstruments.length === 0;
+            document.getElementById('no-charts-message').style.display = show ? 'block' : 'none';
+        }
+
+        async function loadChart(symbol, chartId, interval = '1D') {
+            try {
+                const response = await fetch(`/api/market/${symbol}?interval=${interval}`);
+                if (!response.ok) throw new Error('Erro ao obter dados');
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                renderChart(data, chartId, symbol);
+                
+                // Atualizar preço atual se disponível
+                if (data.current_price) {
+                    const priceElement = document.getElementById(`${chartId}-price`);
+                    let changeClass = '';
+                    let changeText = '';
+                    
+                    if (data.change !== undefined) {
+                        changeClass = data.change >= 0 ? 'positive' : 'negative';
+                        const changeSign = data.change >= 0 ? '+' : '';
+                        changeText = ` (${changeSign}€${data.change.toFixed(4)}, ${changeSign}${data.change_percent.toFixed(2)}%)`;
+                    }
+                    
+                    priceElement.innerHTML = `<span class="${changeClass}">€${data.current_price.toFixed(4)}${changeText}</span>`;
+                }
+                
+            } catch (error) {
+                console.error(`Erro ao carregar gráfico ${chartId}:`, error);
+                
+                // Mostrar erro no lugar do gráfico
+                const canvas = document.getElementById(chartId);
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#e74c3c';
+                ctx.textAlign = 'center';
+                ctx.fillText('Erro ao carregar dados', canvas.width/2, canvas.height/2);
+            }
+        }
+
+        function renderChart(data, chartId, symbol) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            
+            // Destruir gráfico existente
+            if (appState.charts[chartId]) {
+                appState.charts[chartId].destroy();
             }
             
-            updateRecentTrades(data.trades);
-        })
-        .catch(error => console.error('Erro:', error));
-    
-    // Atualiza última atualização
-    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('pt-PT');
-}
+            // Preparar dados para Chart.js
+            const labels = data.data.map(d => {
+                const date = new Date(d.timestamp * 1000);
+                return date.toLocaleDateString('pt-PT') + ' ' + date.toLocaleTimeString('pt-PT', {hour: '2-digit', minute:'2-digit'});
+            });
+            
+            const prices = data.data.map(d => d.close);
+            
+            // Criar novo gráfico
+            appState.charts[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${symbol} (${data.interval})`,
+                        data: prices,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value.toFixed(2);
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxTicksLimit: 10
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: €${context.parsed.y.toFixed(4)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
-// Atualiza tabela de trades recentes
-function updateRecentTrades(trades) {
-    const tbody = document.querySelector('#recent-trades tbody');
-    
-    if (!trades || trades.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center text-muted py-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Nenhum trade realizado ainda
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    tbody.innerHTML = trades.map(trade => `
-        <tr>
-            <td>${new Date(trade.opened_at).toLocaleString('pt-PT')}</td>
-            <td><strong>${trade.symbol}</strong></td>
-            <td>
-                <span class="badge ${trade.side === 'BUY' ? 'bg-success' : 'bg-danger'}">
-                    ${trade.side}
-                </span>
-            </td>
-            <td>${formatCurrency(trade.amount)}</td>
-            <td class="${trade.profit_loss >= 0 ? 'positive' : 'negative'}">
-                ${formatCurrency(trade.profit_loss)}
-            </td>
-            <td>
-                <span class="badge ${trade.status === 'OPEN' ? 'bg-warning' : 'bg-secondary'}">
-                    ${trade.status}
-                </span>
-            </td>
-        </tr>
-    `).join('');
-}
+        function destroyChart(chartId) {
+            if (appState.charts[chartId]) {
+                appState.charts[chartId].destroy();
+                appState.charts[chartId] = null;
+            }
+        }
 
-// Atualiza dashboard a cada 30 segundos
-setInterval(updateDashboard, 30000);
+        function filterInstruments(searchTerm) {
+            const items = document.querySelectorAll('.instrument-item');
+            const categories = document.querySelectorAll('.category-header');
+            
+            searchTerm = searchTerm.toLowerCase();
+            
+            items.forEach(item => {
+                const symbol = item.dataset.symbol.toLowerCase();
+                const name = item.dataset.name.toLowerCase();
+                const matches = symbol.includes(searchTerm) || name.includes(searchTerm);
+                item.style.display = matches ? 'block' : 'none';
+            });
+            
+            // Esconder categorias vazias
+            categories.forEach(header => {
+                const nextItems = [];
+                let next = header.nextElementSibling;
+                while (next && !next.classList.contains('category-header')) {
+                    if (next.classList.contains('instrument-item')) {
+                        nextItems.push(next);
+                    }
+                    next = next.nextElementSibling;
+                }
+                
+                const hasVisibleItems = nextItems.some(item => item.style.display !== 'none');
+                header.style.display = hasVisibleItems ? 'block' : 'none';
+            });
+        }
 
-// Atualiza na inicialização
-document.addEventListener('DOMContentLoaded', function() {
-    updateDashboard();
-});
-</script>
-{% endblock %}
+        // Funções de status do sistema (do template original)
+        async function updateSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                if (data.error) {
+                    updateStatusIndicator(false, 'Erro');
+                    return;
+                }
+                
+                // Atualiza saldo
+                const balanceFormatted = new Intl.NumberFormat('pt-PT', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(data.portfolio.balance);
+                
+                document.getElementById('balance-value').textContent = balanceFormatted;
+                document.getElementById('portfolio-balance-main').textContent = '€' + balanceFormatted;
+                
+                // Atualiza estatísticas
+                document.getElementById('open-trades').textContent = data.portfolio.open_trades || 0;
+                
+                // Atualiza status
+                const canTrade = data.portfolio.can_trade;
+                updateStatusIndicator(canTrade, canTrade ? 'Online' : 'Restrito');
+                
+            } catch (error) {
+                console.error('Erro ao atualizar status:', error);
+                updateStatusIndicator(false, 'Offline');
+            }
+        }
+
+        function updateStatusIndicator(isOnline, text) {
+            const icon = document.getElementById('status-icon');
+            const statusText = document.getElementById('status-text');
+            
+            if (isOnline) {
+                icon.className = 'fas fa-circle status-online';
+            } else {
+                icon.className = 'fas fa-circle status-offline';
+            }
+            
+            statusText.textContent = text;
+        }
+
+        // Formatação de números
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-PT', {
+                style: 'currency',
+                currency: 'EUR',
+                minimumFractionDigits: 2
+            }).format(value);
+        }
+
+        function formatPercentage(value) {
+            return new Intl.NumberFormat('pt-PT', {
+                style: 'percent',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value / 100);
+        }
+    </script>
+</body>
+</html>

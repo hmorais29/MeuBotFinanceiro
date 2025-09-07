@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notícias e Sentimento - Trading Bot</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: bold;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .news-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        
+        .news-item:last-child {
+            border-bottom: none;
+        }
+        
+        .sentiment-positive {
+            color: var(--success-color);
+            background: rgba(39, 174, 96, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        
+        .sentiment-negative {
+            color: var(--danger-color);
+            background: rgba(231, 76, 60, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        
+        .sentiment-neutral {
+            color: #666;
+            background: rgba(108, 117, 125, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        
+        .source-badge {
+            background: var(--secondary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+        }
+        
+        .tab-pane {
+            min-height: 500px;
+        }
+        
+        .sentiment-summary {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .sentiment-chart {
+            max-width: 200px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- Cabeçalho -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-newspaper me-2"></i>
+                        Central de Notícias e Análise de Sentimento
+                        <span class="float-end">
+                            <button class="btn btn-sm btn-outline-light" onclick="refreshNews()">
+                                <i class="fas fa-sync-alt me-1" id="refreshIcon"></i>Atualizar
+                            </button>
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Resumo do Sentimento -->
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="sentiment-summary">
+                                    <div class="sentiment-chart">
+                                        <canvas id="sentimentChart" width="150" height="150"></canvas>
+                                    </div>
+                                    <h6 class="mt-2">Sentimento Geral</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3">
+                                            <i class="fas fa-smile text-success" style="font-size: 2em;"></i>
+                                            <h4 class="text-success mt-2">65%</h4>
+                                            <span>Positivo</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3">
+                                            <i class="fas fa-meh text-warning" style="font-size: 2em;"></i>
+                                            <h4 class="text-warning mt-2">25%</h4>
+                                            <span>Neutro</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3">
+                                            <i class="fas fa-frown text-danger" style="font-size: 2em;"></i>
+                                            <h4 class="text-danger mt-2">10%</h4>
+                                            <span>Negativo</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs de instrumentos -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="newsTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="aapl-tab" data-bs-toggle="tab" data-bs-target="#aapl" type="button" role="tab">
+                                    <i class="fas fa-apple-alt me-1"></i>AAPL
+                                    <span class="badge bg-success ms-1">12</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tsla-tab" data-bs-toggle="tab" data-bs-target="#tsla" type="button" role="tab">
+                                    <i class="fas fa-car me-1"></i>TSLA
+                                    <span class="badge bg-warning ms-1">8</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="btc-tab" data-bs-toggle="tab" data-bs-target="#btc" type="button" role="tab">
+                                    <i class="fab fa-bitcoin me-1"></i>BTC-USD
+                                    <span class="badge bg-info ms-1">15</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
+                                    <i class="fas fa-globe me-1"></i>Todas
+                                    <span class="badge bg-secondary ms-1">35</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="newsTabContent">
+                            <!-- AAPL News -->
+                            <div class="tab-pane fade show active" id="aapl" role="tabpanel">
+                                <div class="news-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Apple Reports Strong Q4 Earnings, Beats Revenue Estimates</h6>
+                                            <p class="mb-2 text-muted">Apple Inc. delivered impressive fourth-quarter results, with revenue surpassing analyst expectations driven by strong iPhone 15 sales and services growth...</p>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="source-badge">Reuters</span>
+                                                <span class="sentiment-positive">
+                                                    <i class="fas fa-arrow-up me-1"></i>Positivo (0.85)
+                                                </span>
+                                                <small class="text-muted">2 horas atrás</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary ms-3" onclick="readFullArticle('apple-earnings')">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="news-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">iPhone 16 Pro Demand Exceeds Supply in Major Markets</h6>
+                                            <p class="mb-2 text-muted">Apple's latest flagship smartphone continues to see unprecedented demand, with waiting times extending to 3-4 weeks in key markets...</p>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="source-badge">Bloomberg</span>
+                                                <span class="sentiment-positive">
+                                                    <i class="fas fa-arrow-up me-1"></i>Positivo (0.72)
+                                                </span>
+                                                <small class="text-muted">4 horas atrás</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary ms-3" onclick="readFullArticle('iphone-demand')">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="news-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Apple Faces New EU Regulatory Challenges Over App Store</h6>
+                                            <p class="mb-2 text-muted">European regulators continue to scrutinize Apple's App Store policies, potentially impacting future revenue streams...</p>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="source-badge">TechCrunch</span>
+                                                <span class="sentiment-negative">
+                                                    <i class="fas fa-arrow-down me-1"></i>Negativo (-0.45)
+                                                </span>
+                                                <small class="text-muted">6 horas atrás</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary ms-3" onclick="readFullArticle('eu-regulation')">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- TSLA News -->
+                            <div class="tab-pane fade" id="tsla" role="tabpanel">
+                                <div class="news-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Tesla Robotaxi Event Showcases Autonomous Future</h6>
+                                            <p class="mb-2 text-muted">Elon Musk unveiled Tesla's vision for fully autonomous vehicles at the highly anticipated Robotaxi event...</p>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="source-badge">CNBC</span>
+                                                <span class="sentiment-positive">
+                                                    <i class="fas fa-arrow-up me-1"></i>Positivo (0.68)
+                                                </span>
+                                                <small class="text-muted">1 hora atrás</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary ms-3" onclick="readFullArticle('tesla-robotaxi')">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="news-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Tesla Stock Volatility Continues Amid Production Concerns</h6>
+                                            <p class="mb-2 text-muted">Analysts remain divided on Tesla's near-term prospects as production challenges persist at some facilities...</p>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="source-badge">MarketWatch</span>
+                                                <span class="sentiment-neutral">
+                                                    <i class="fas fa-minus me-1"></i>Neutro (0.05)
+                                                </span>
+                                                <small class="text-muted">3 horas atrás</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary ms-3" onclick="readFullArticle('tesla-volatility')">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- BTC News -->
+                            <div class="tab-pane fade" id="btc" role="tabpanel">
+                                <div class="news-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Bitcoin ETF Approval Drives Institutional Adoption</h6>
+                                            <p class="mb-2 text-muted">Major institutional investors continue to allocate funds to Bitcoin following spot ETF approvals...</p>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="source-badge">CoinDesk</span>
+                                                <span class="sentiment-positive">
+                                                    <i class="fas fa-arrow-up me-1"></i>Positivo (0.78)
+                                                </span>
+                                                <small class="text-muted">30 min atrás</small>
+                                            </div>
+                                        </div>
+                                        <button class
